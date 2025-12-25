@@ -1,15 +1,21 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { ItineraryItem, ParsedLocation } from "../types";
 
+
+const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+if (!API_KEY) {
+  console.error("Gemini API Key is missing! Please check Vercel environment variables.");
+}
+
 // Fixed: Strictly following guidelines for GoogleGenAI initialization
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const ai = new GoogleGenAI({ apiKey: API_KEY || "" });
 
 export const generateItinerarySuggestion = async (day: number, context: string, areas?: string): Promise<Omit<ItineraryItem, 'id'>[]> => {
   try {
     const areaPrompt = areas ? `Specifically focusing on these areas/districts: ${areas}. Arrange the route logically to minimize travel time between these districts.` : '';
     
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-2.5-flash",
       contents: `Suggest a realistic 1-day itinerary for Day ${day} of a trip to Seoul, South Korea. 
       ${areaPrompt}
       Context/Vibe: ${context}.
@@ -58,7 +64,7 @@ export const generateItinerarySuggestion = async (day: number, context: string, 
 export const parseLocationsFromText = async (text: string): Promise<ParsedLocation[]> => {
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-2.5-flash",
       contents: `Extract all travel locations/places in Seoul mentioned in this text. 
       For each location, provide coordinates.
       Return a JSON array. 
@@ -97,7 +103,7 @@ export interface RouteOption {
 export const calculateRoute = async (from: string, to: string): Promise<RouteOption[]> => {
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-2.5-flash",
       contents: `As a Seoul travel expert, estimate the travel time and best routes from "${from}" to "${to}" within Seoul. 
       Provide 3 options: one for Subway, one for Bus, and one for Walking. 
       Return a JSON array of route options.`,
@@ -127,7 +133,7 @@ export const calculateRoute = async (from: string, to: string): Promise<RouteOpt
 export const parseActivityFromText = async (text: string): Promise<Partial<ItineraryItem>> => {
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-2.5-flash",
       contents: `Analyze this text and extract a single travel itinerary activity item for a trip to Seoul.
       Text: "${text}"
       Return JSON.`,
@@ -162,7 +168,7 @@ export const chatWithTravelGuide = async (
       : message;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-2.5-flash",
       contents: prompt,
       config: {
         systemInstruction: `You are a savvy local guide for Seoul, South Korea. 
@@ -203,7 +209,7 @@ export const chatWithTravelGuide = async (
 export const getCoordinatesForLocation = async (location: string): Promise<{lat: number, lng: number} | null> => {
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-2.5-flash",
       contents: `Get the accurate latitude and longitude for this place in Seoul: "${location}". 
       If it is a generic activity (e.g. "Lunch", "Rest", "Subway") without a specific location name, return null. 
       Return a JSON object with lat and lng.`,
@@ -232,7 +238,7 @@ export const generateNextActivitySuggestion = async (currentItems: ItineraryItem
   try {
     const context = currentItems.map(i => `${i.time}: ${i.activity} at ${i.location}`).join('\n');
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-2.5-flash",
       contents: `Given this itinerary for a day in Seoul:\n${context}\n\nSuggest ONE next logical activity or place nearby. Return JSON.`,
       config: {
         responseMimeType: "application/json",
