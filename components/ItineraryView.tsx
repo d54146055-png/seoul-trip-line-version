@@ -1,10 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { ItineraryItem } from '../types';
-import { Plus, Trash2, Wand2, Loader2, Sparkles, ChevronUp, Calendar, Edit2, ArrowRight, MapPin } from 'lucide-react';
+import { Plus, Trash2, Wand2, Loader2, Sparkles, ChevronUp, Calendar, Edit2, ArrowRight, MapPin, Image as ImageIcon, Dice5 } from 'lucide-react';
 import { generateItinerarySuggestion, generateNextActivitySuggestion, getCoordinatesForLocation } from '../services/geminiService';
 import { addItineraryItem, deleteItineraryItem, updateItineraryItem, subscribeToTripSettings, updateTripSettings } from '../services/firebaseService';
 import { ICON_STAR, ICON_PAGODA, ICON_LION, ICON_THUMB_BEAR, ICON_SQUARE_CAT, ICON_HEART_DOODLE, ICON_SPARKLE } from '../utils/icons';
+import { getRandomImage } from '../utils/imageAssets';
 
 interface Props {
   items: ItineraryItem[];
@@ -89,6 +90,10 @@ const ItineraryView: React.FC<Props> = ({ items }) => {
           const fetched = await getCoordinatesForLocation(newItem.location);
           if (fetched) coords = fetched;
       }
+
+      // Logic: Use provided URL, OR existing one (if editing), OR pick a random one
+      const imageToUse = newItem.imageUrl || (editingItemId ? undefined : getRandomImage());
+
       if (editingItemId) {
           await updateItineraryItem(editingItemId, {
              time: newItem.time,
@@ -96,7 +101,8 @@ const ItineraryView: React.FC<Props> = ({ items }) => {
              location: newItem.location,
              notes: newItem.notes || '',
              lat: coords.lat,
-             lng: coords.lng
+             lng: coords.lng,
+             imageUrl: imageToUse // Will update if user changed it, or keep undefined/existing handled by logic
           });
       } else {
           await addItineraryItem({
@@ -107,7 +113,8 @@ const ItineraryView: React.FC<Props> = ({ items }) => {
             day: selectedDay,
             weather: { temp: 20, condition: 'sunny', icon: '☀️' },
             lat: coords.lat,
-            lng: coords.lng
+            lng: coords.lng,
+            imageUrl: imageToUse || '' 
           });
       }
       setIsSaving(false);
@@ -122,7 +129,15 @@ const ItineraryView: React.FC<Props> = ({ items }) => {
     const dateStr = getDayDate(selectedDay);
     const context = `Fun, Doodly, Creative trip. ${dateStr ? `Date: ${dateStr} (Predict weather for this specific date).` : ''}`;
     const suggestedItems = await generateItinerarySuggestion(selectedDay, context, targetAreas);
-    for (const item of suggestedItems) await addItineraryItem(item);
+    
+    // Automatically assign random images to AI suggestions
+    for (const item of suggestedItems) {
+        await addItineraryItem({
+            ...item,
+            imageUrl: getRandomImage()
+        });
+    }
+    
     setIsGenerating(false);
     setIsPlanModalOpen(false);
   };
@@ -140,7 +155,8 @@ const ItineraryView: React.FC<Props> = ({ items }) => {
               day: selectedDay,
               lat: coords?.lat,
               lng: coords?.lng,
-              weather: suggestion.weather
+              weather: suggestion.weather,
+              imageUrl: getRandomImage() // Auto assign image
           });
       } else {
           alert("Couldn't think of anything nearby! Try adding manually.");
@@ -201,14 +217,6 @@ const ItineraryView: React.FC<Props> = ({ items }) => {
       </div>
 
       {/* Grid Layout - Cards mimicking the Second Image Style */}
-      {/* 
-         Style Rules applied:
-         1. Yellow Background (cardbg)
-         2. Wonky Borders
-         3. White Inner Box for Image (border-ink)
-         4. Text below
-         5. Blue Button
-      */}
       <div className="grid grid-cols-2 gap-4 pb-24">
         
         {/* Empty State */}
@@ -244,11 +252,30 @@ const ItineraryView: React.FC<Props> = ({ items }) => {
             {/* 1. Illustration Area - White Box with Blue Border */}
             <div className="bg-white border-2 border-ink rounded-xl h-32 w-full mb-3 flex items-center justify-center relative overflow-hidden">
                 {/* Random background dots inside image box */}
-                <div className="absolute inset-0 opacity-20" style={{backgroundImage: 'url(#blue-dots)'}}></div>
+                <div className="absolute inset-0 opacity-20 pointer-events-none" style={{backgroundImage: 'url(#blue-dots)'}}></div>
                 
-                <div className="w-24 h-24 transform transition-transform group-hover:scale-110 duration-300 relative z-10" 
-                     dangerouslySetInnerHTML={{__html: getIcon(idx)}} 
-                />
+                {item.imageUrl ? (
+                   <img 
+                     src={item.imageUrl} 
+                     alt={item.activity} 
+                     className="w-full h-full object-cover relative z-10 grayscale-[20%] contrast-125 hover:grayscale-0 transition-all duration-500"
+                     onError={(e) => {
+                         // Fallback if image fails (switch to icon)
+                         (e.target as HTMLImageElement).style.display = 'none';
+                         const parent = (e.target as HTMLElement).parentElement;
+                         if (parent && !parent.querySelector('.fallback-icon')) {
+                             const fallbackIcon = document.createElement('div');
+                             fallbackIcon.innerHTML = getIcon(idx);
+                             fallbackIcon.className = "fallback-icon w-24 h-24 transform transition-transform duration-300 relative z-10";
+                             parent.appendChild(fallbackIcon);
+                         }
+                     }}
+                   />
+                ) : (
+                   <div className="w-24 h-24 transform transition-transform group-hover:scale-110 duration-300 relative z-10" 
+                        dangerouslySetInnerHTML={{__html: getIcon(idx)}} 
+                   />
+                )}
             </div>
 
             {/* 2. Content Area */}
@@ -290,6 +317,11 @@ const ItineraryView: React.FC<Props> = ({ items }) => {
                      </div>
                      <div className="flex-1 overflow-y-auto text-sm font-bold text-ink space-y-2 font-sans bg-white border-2 border-ink rounded-lg p-2 mb-2">
                         <p>{item.notes || "No notes."}</p>
+                        {item.imageUrl && (
+                            <div className="border-t border-dashed border-ink/30 pt-1 mt-1">
+                                <span className="text-[10px] text-gray-400 truncate block">Img: {item.imageUrl}</span>
+                            </div>
+                        )}
                         {item.weather && (
                             <p className="text-xs text-gray-500 flex items-center gap-1 border-t border-gray-200 pt-1 mt-1">
                                 <span>{item.weather.icon}</span> 
@@ -335,7 +367,7 @@ const ItineraryView: React.FC<Props> = ({ items }) => {
       <button
         onClick={() => {
             setEditingItemId(null);
-            setNewItem({ time: '09:00', day: selectedDay });
+            setNewItem({ time: '09:00', day: selectedDay, imageUrl: '' });
             setIsModalOpen(true);
         }}
         className="fixed bottom-24 right-6 w-14 h-14 bg-ink text-white rounded-full border-2 border-white shadow-doodle flex items-center justify-center hover:scale-110 transition-transform z-40"
@@ -346,7 +378,7 @@ const ItineraryView: React.FC<Props> = ({ items }) => {
       {/* Modal: Add / Edit Item */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-ink/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white border-2 border-ink rounded-[20px] p-6 w-full max-w-sm shadow-doodle relative">
+          <div className="bg-white border-2 border-ink rounded-[20px] p-6 w-full max-w-sm shadow-doodle relative max-h-[90vh] overflow-y-auto no-scrollbar">
             <h2 className="text-3xl font-bold text-ink mb-6 text-center font-hand transform -rotate-2">{editingItemId ? 'Edit Plan' : 'New Plan'}</h2>
             <div className="space-y-4">
                <div className="flex items-center gap-2">
@@ -378,6 +410,25 @@ const ItineraryView: React.FC<Props> = ({ items }) => {
                      onChange={e => setNewItem({...newItem, location: e.target.value})}
                      className="w-full hand-input font-bold"
                    />
+               </div>
+
+               {/* New Image URL Input with Auto-pick Note */}
+               <div>
+                   <label className="block text-xs font-bold text-ink mb-1 flex items-center gap-1 justify-between">
+                       <span className="flex items-center gap-1"><ImageIcon size={12}/> Image</span>
+                       <button onClick={() => setNewItem({...newItem, imageUrl: getRandomImage()})} className="text-marker text-[10px] flex items-center gap-1 hover:underline">
+                           <Dice5 size={10}/> Pick Random
+                       </button>
+                   </label>
+                   <input 
+                     placeholder="Leave empty for auto-select" 
+                     value={newItem.imageUrl || ''} 
+                     onChange={e => setNewItem({...newItem, imageUrl: e.target.value})}
+                     className="w-full hand-input font-bold text-sm"
+                   />
+                   <p className="text-[10px] text-gray-400 font-bold mt-1">
+                       Leave blank to use a photo from your <code className="bg-gray-100 px-1 rounded">assets/</code> folder.
+                   </p>
                </div>
 
                <div>
@@ -416,7 +467,7 @@ const ItineraryView: React.FC<Props> = ({ items }) => {
                  placeholder="e.g. Gyeongbokgung, Bukchon Hanok Village, Onion Cafe, Insadong..."
                  className="w-full h-32 hand-input mb-4 font-bold"
              />
-             <p className="text-[10px] text-gray-400 font-bold mb-2 text-center">AI will sort them and fill in the gaps!</p>
+             <p className="text-[10px] text-gray-400 font-bold mb-2 text-center">AI will sort them and also assign cool photos!</p>
              <button 
                 onClick={handleGenerate} 
                 disabled={isGenerating}

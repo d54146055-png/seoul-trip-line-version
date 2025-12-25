@@ -15,6 +15,7 @@ export interface ItineraryItem {
   lat?: number;
   lng?: number;
   weather?: WeatherInfo;
+  imageUrl?: string; // New field for custom images
 }
 
 export interface Expense {
