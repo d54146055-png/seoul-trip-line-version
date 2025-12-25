@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage, ItineraryItem } from '../types';
 import { Send, Map, Bot, User as UserIcon, Loader2, MapPin, CalendarPlus, Check } from 'lucide-react';
@@ -15,7 +16,6 @@ const ChatView: React.FC = () => {
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Subscribe to persistent chat
   useEffect(() => {
     const unsubscribe = subscribeToChat((msgs) => {
         setMessages(msgs);
@@ -23,7 +23,6 @@ const ChatView: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
-  // Scroll to bottom on new messages
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollIntoView({ behavior: 'smooth' });
@@ -33,7 +32,6 @@ const ChatView: React.FC = () => {
   const handleSend = async () => {
     if (!input.trim()) return;
 
-    // 1. Send User Message
     const userMsg: Omit<ChatMessage, 'id'> = { 
         role: 'user', 
         text: input, 
@@ -44,7 +42,6 @@ const ChatView: React.FC = () => {
     setInput('');
     setLoading(true);
 
-    // 2. Get Location
     let location;
     if (navigator.geolocation) {
        try {
@@ -57,10 +54,8 @@ const ChatView: React.FC = () => {
        }
     }
 
-    // 3. Call AI
     const response = await chatWithTravelGuide(userMsg.text, location);
     
-    // 4. Save Model Response
     await sendChatMessage({
       role: 'model',
       text: response.text || "I couldn't find an answer to that.",
@@ -73,14 +68,8 @@ const ChatView: React.FC = () => {
 
   const handleAddToItinerary = async (msg: ChatMessage) => {
       setImportingMsgId(msg.id);
-      
-      // AI Parse
       const parsedData = await parseActivityFromText(msg.text);
-      
-      setImportModalData({
-          ...parsedData,
-          day: 1 // Default to Day 1
-      });
+      setImportModalData({ ...parsedData, day: 1 });
       setImportingMsgId(null);
   };
 
@@ -99,35 +88,34 @@ const ChatView: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-50">
-      {/* Messages Area - Flex Grow to take available space */}
+    <div className="flex flex-col h-full bg-paper">
+      {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
         {messages.length === 0 && (
             <div className="text-center text-gray-400 mt-10">
-                <Bot size={48} className="mx-auto mb-2 text-gray-300" />
-                <p>Start planning your trip...</p>
+                <Bot size={48} className="mx-auto mb-2 text-ink/30" />
+                <p className="font-hand text-xl text-ink">Start planning your trip...</p>
             </div>
         )}
         
         {messages.map((msg) => (
           <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
              <div className={`flex max-w-[90%] ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'} gap-2 items-end group`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mb-1 ${msg.role === 'user' ? 'bg-indigo-600' : 'bg-emerald-500'}`}>
-                    {msg.role === 'user' ? <UserIcon size={16} className="text-white"/> : <Bot size={16} className="text-white"/>}
+                <div className={`w-8 h-8 rounded-full border-2 border-ink flex items-center justify-center flex-shrink-0 mb-1 bg-white`}>
+                    {msg.role === 'user' ? <UserIcon size={16} className="text-ink"/> : <Bot size={16} className="text-marker"/>}
                 </div>
                 
                 <div className="flex flex-col gap-1">
-                    <div className={`p-3 rounded-2xl text-sm leading-relaxed shadow-sm ${
+                    <div className={`p-3 border-2 border-ink text-sm leading-relaxed shadow-doodle-sm ${
                         msg.role === 'user' 
-                        ? 'bg-indigo-600 text-white rounded-tr-none' 
-                        : 'bg-white text-gray-800 rounded-tl-none border border-gray-100'
+                        ? 'bg-ink text-white rounded-l-xl rounded-tr-xl' 
+                        : 'bg-white text-ink rounded-r-xl rounded-tl-xl'
                     }`}>
                         {msg.text}
                         
-                        {/* Render Map Links if available */}
                         {msg.mapChunks && msg.mapChunks.length > 0 && (
-                            <div className="mt-3 pt-3 border-t border-gray-100 space-y-2">
-                                <p className="text-xs font-bold text-gray-400 uppercase flex items-center">
+                            <div className="mt-3 pt-3 border-t-2 border-dashed border-gray-200 space-y-2">
+                                <p className="text-xs font-bold uppercase flex items-center">
                                     <MapPin size={10} className="mr-1"/> Found Places
                                 </p>
                                 {msg.mapChunks.map((chunk, idx) => (
@@ -136,7 +124,7 @@ const ChatView: React.FC = () => {
                                         href={chunk.source.uri} 
                                         target="_blank" 
                                         rel="noreferrer"
-                                        className="block bg-gray-50 p-2 rounded hover:bg-indigo-50 transition-colors text-indigo-600 text-xs truncate flex items-center"
+                                        className="block bg-gray-50 p-2 rounded border border-ink/30 hover:bg-yellow-50 transition-colors text-ink text-xs truncate flex items-center font-bold"
                                     >
                                         <Map size={12} className="mr-2 flex-shrink-0"/>
                                         {chunk.source.title}
@@ -146,12 +134,11 @@ const ChatView: React.FC = () => {
                         )}
                     </div>
 
-                    {/* Add to Plan Button for AI messages */}
                     {msg.role === 'model' && (
                         <button 
                             onClick={() => handleAddToItinerary(msg)}
                             disabled={importingMsgId === msg.id}
-                            className="self-start ml-1 mt-1 text-xs text-cocoa bg-sand/30 hover:bg-sand/50 px-2 py-1 rounded-full flex items-center transition-colors opacity-0 group-hover:opacity-100"
+                            className="self-start ml-1 mt-1 text-xs text-ink bg-white border border-ink hover:bg-gray-50 px-2 py-1 rounded-lg flex items-center transition-colors shadow-sm font-bold"
                         >
                             {importingMsgId === msg.id ? (
                                 <Loader2 size={10} className="animate-spin mr-1"/>
@@ -167,17 +154,17 @@ const ChatView: React.FC = () => {
         ))}
         {loading && (
             <div className="flex justify-start">
-                <div className="bg-white p-3 rounded-2xl rounded-tl-none shadow-sm flex items-center gap-2 ml-10">
-                    <Loader2 size={16} className="animate-spin text-emerald-500" />
-                    <span className="text-xs text-gray-400">Thinking...</span>
+                <div className="bg-white border-2 border-ink p-3 rounded-xl rounded-tl-none shadow-sm flex items-center gap-2 ml-10">
+                    <Loader2 size={16} className="animate-spin text-marker" />
+                    <span className="text-xs font-bold text-ink">Thinking...</span>
                 </div>
             </div>
         )}
         <div ref={scrollRef} />
       </div>
 
-      {/* Input Area - Stays visible at bottom of flex container */}
-      <div className="p-3 bg-white border-t border-gray-100 z-10">
+      {/* Input Area */}
+      <div className="p-3 bg-white border-t-2 border-ink z-10">
         <div className="flex gap-2">
             <input 
                 type="text" 
@@ -185,60 +172,60 @@ const ChatView: React.FC = () => {
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSend()}
                 placeholder="Ask Seoul Mate..."
-                className="flex-1 bg-gray-100 text-gray-900 placeholder-gray-400 rounded-full px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-sm"
+                className="flex-1 bg-paper border-2 border-ink text-ink placeholder-gray-400 rounded-xl px-4 py-3 focus:outline-none focus:shadow-doodle-sm transition-all text-sm font-bold"
             />
             <button 
                 onClick={handleSend}
                 disabled={loading || !input.trim()}
-                className="w-11 h-11 bg-indigo-600 rounded-full flex items-center justify-center text-white shadow-lg disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 flex-shrink-0"
+                className="w-12 h-12 bg-ink border-2 border-ink rounded-xl flex items-center justify-center text-white shadow-doodle disabled:opacity-50 disabled:shadow-none transition-all active:translate-y-1 active:shadow-none flex-shrink-0"
             >
                 <Send size={18} />
             </button>
         </div>
       </div>
 
-      {/* Import Confirmation Modal */}
+      {/* Import Modal */}
       {importModalData && (
-          <div className="fixed inset-0 bg-cocoa/40 z-50 flex items-center justify-center p-6 backdrop-blur-sm">
-              <div className="bg-white rounded-[2rem] w-full max-w-sm p-6 shadow-2xl animate-[float_0.3s_ease-out]">
-                  <h3 className="text-lg font-serif font-bold text-cocoa mb-4 text-center">Add to Itinerary</h3>
+          <div className="fixed inset-0 bg-ink/40 z-50 flex items-center justify-center p-6 backdrop-blur-sm">
+              <div className="bg-white border-2 border-ink rounded-[2rem] w-full max-w-sm p-6 shadow-2xl animate-[float_0.3s_ease-out]">
+                  <h3 className="text-xl font-hand font-bold text-ink mb-4 text-center">Add to Itinerary</h3>
                   
-                  <div className="space-y-4 bg-cream p-4 rounded-xl border border-sand/50">
+                  <div className="space-y-4 bg-paper p-4 rounded-xl border-2 border-ink">
                       <div>
-                          <label className="text-[10px] font-bold text-latte uppercase">Activity</label>
+                          <label className="text-[10px] font-bold text-ink uppercase">Activity</label>
                           <input 
                               value={importModalData.activity} 
                               onChange={e => setImportModalData({...importModalData, activity: e.target.value})}
-                              className="w-full bg-white p-2 rounded-lg text-cocoa font-bold text-sm mt-1 border border-sand focus:outline-none focus:border-cocoa"
+                              className="w-full bg-white p-2 rounded-lg text-ink font-bold text-sm mt-1 border-2 border-ink focus:outline-none"
                           />
                       </div>
                       <div className="flex gap-3">
                           <div className="flex-1">
-                              <label className="text-[10px] font-bold text-latte uppercase">Time</label>
+                              <label className="text-[10px] font-bold text-ink uppercase">Time</label>
                               <input 
                                   type="time"
                                   value={importModalData.time} 
                                   onChange={e => setImportModalData({...importModalData, time: e.target.value})}
-                                  className="w-full bg-white p-2 rounded-lg text-cocoa text-sm mt-1 border border-sand focus:outline-none"
+                                  className="w-full bg-white p-2 rounded-lg text-ink text-sm mt-1 border-2 border-ink focus:outline-none"
                               />
                           </div>
                           <div className="flex-1">
-                              <label className="text-[10px] font-bold text-latte uppercase">Day</label>
+                              <label className="text-[10px] font-bold text-ink uppercase">Day</label>
                               <select 
                                   value={importModalData.day}
                                   onChange={e => setImportModalData({...importModalData, day: Number(e.target.value)})}
-                                  className="w-full bg-white p-2 rounded-lg text-cocoa text-sm mt-1 border border-sand focus:outline-none appearance-none"
+                                  className="w-full bg-white p-2 rounded-lg text-ink text-sm mt-1 border-2 border-ink focus:outline-none appearance-none font-bold"
                               >
                                   {[1,2,3,4,5,6,7].map(d => <option key={d} value={d}>Day {d}</option>)}
                               </select>
                           </div>
                       </div>
                       <div>
-                          <label className="text-[10px] font-bold text-latte uppercase">Location</label>
+                          <label className="text-[10px] font-bold text-ink uppercase">Location</label>
                           <input 
                               value={importModalData.location} 
                               onChange={e => setImportModalData({...importModalData, location: e.target.value})}
-                              className="w-full bg-white p-2 rounded-lg text-cocoa text-sm mt-1 border border-sand focus:outline-none"
+                              className="w-full bg-white p-2 rounded-lg text-ink text-sm mt-1 border-2 border-ink focus:outline-none"
                           />
                       </div>
                   </div>
@@ -246,13 +233,13 @@ const ChatView: React.FC = () => {
                   <div className="flex gap-3 mt-6">
                       <button 
                           onClick={() => setImportModalData(null)}
-                          className="flex-1 py-3 text-gray-400 font-bold hover:bg-gray-50 rounded-xl"
+                          className="flex-1 py-3 text-ink font-bold hover:bg-gray-100 rounded-xl border-2 border-transparent hover:border-ink"
                       >
                           Cancel
                       </button>
                       <button 
                           onClick={confirmImport}
-                          className="flex-1 py-3 bg-cocoa text-white font-bold rounded-xl shadow-lg hover:bg-latte transition-colors flex items-center justify-center"
+                          className="flex-1 py-3 bg-marker text-white font-bold rounded-xl shadow-doodle border-2 border-ink hover:bg-red-600 transition-colors flex items-center justify-center active:translate-y-1 active:shadow-none"
                       >
                           <Check size={18} className="mr-2"/> Confirm
                       </button>

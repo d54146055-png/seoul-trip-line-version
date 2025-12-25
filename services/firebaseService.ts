@@ -1,6 +1,5 @@
-
 import { db, TRIP_ID, isFirebaseConfigured } from '../firebaseConfig';
-import { collection, doc, onSnapshot, addDoc, deleteDoc, updateDoc, query, orderBy, limit, writeBatch, getDocs } from 'firebase/firestore';
+import { collection, doc, onSnapshot, addDoc, deleteDoc, updateDoc, query, orderBy, limit, writeBatch, getDocs, setDoc } from 'firebase/firestore';
 import { ItineraryItem, Expense, User, ChatMessage, MapMarker } from '../types';
 
 // ==========================================
@@ -83,6 +82,39 @@ export const deleteItineraryItem = async (id: string) => {
   } else {
     const items = getLocal<ItineraryItem>('itinerary');
     setLocal('itinerary', items.filter(i => i.id !== id));
+  }
+};
+
+export const updateItineraryItem = async (id: string, updates: Partial<ItineraryItem>) => {
+  if (useCloud) {
+    try { await updateDoc(doc(db, 'trips', TRIP_ID, 'itinerary', id), updates); } catch (e) { handleCloudError(e); }
+  } else {
+    const items = getLocal<ItineraryItem>('itinerary');
+    const updated = items.map(i => i.id === id ? { ...i, ...updates } : i);
+    setLocal('itinerary', updated);
+  }
+};
+
+// --- Trip Settings ---
+export const subscribeToTripSettings = (callback: (settings: { startDate?: string, endDate?: string }) => void) => {
+  if (useCloud) {
+    return onSnapshot(doc(db, 'trips', TRIP_ID), (snapshot) => {
+      callback(snapshot.exists() ? snapshot.data() : {});
+    });
+  } else {
+    const stored = localStorage.getItem(`${TRIP_ID}_settings`);
+    callback(stored ? JSON.parse(stored) : {});
+    return () => {};
+  }
+};
+
+export const updateTripSettings = async (settings: { startDate?: string, endDate?: string }) => {
+  if (useCloud) {
+    try { await setDoc(doc(db, 'trips', TRIP_ID), settings, { merge: true }); } catch (e) { handleCloudError(e); }
+  } else {
+    const stored = localStorage.getItem(`${TRIP_ID}_settings`);
+    const current = stored ? JSON.parse(stored) : {};
+    localStorage.setItem(`${TRIP_ID}_settings`, JSON.stringify({ ...current, ...settings }));
   }
 };
 

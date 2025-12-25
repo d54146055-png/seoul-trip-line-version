@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { ItineraryItem, ParsedLocation } from "../types";
 
@@ -15,6 +14,7 @@ export const generateItinerarySuggestion = async (day: number, context: string, 
       ${areaPrompt}
       Context/Vibe: ${context}.
       Include estimated weather for this time of year (Spring/Autumn usually best).
+      IMPORTANT: Provide accurate latitude (lat) and longitude (lng) for each location if possible.
       Return a JSON array of activities with times.`,
       config: {
         responseMimeType: "application/json",
@@ -27,6 +27,8 @@ export const generateItinerarySuggestion = async (day: number, context: string, 
               activity: { type: Type.STRING, description: "Short title of activity" },
               location: { type: Type.STRING, description: "Name of the place/area" },
               notes: { type: Type.STRING, description: "Helpful tip or transport info" },
+              lat: { type: Type.NUMBER, description: "Latitude of the location" },
+              lng: { type: Type.NUMBER, description: "Longitude of the location" },
               weather: {
                 type: Type.OBJECT,
                 properties: {
@@ -193,5 +195,72 @@ export const chatWithTravelGuide = async (
       text: "抱歉，我現在無法連接首爾導覽網路。請再試一次。",
       mapChunks: []
     };
+  }
+};
+
+// --- NEW FUNCTIONS ---
+
+export const getCoordinatesForLocation = async (location: string): Promise<{lat: number, lng: number} | null> => {
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: `Get the accurate latitude and longitude for this place in Seoul: "${location}". 
+      If it is a generic activity (e.g. "Lunch", "Rest", "Subway") without a specific location name, return null. 
+      Return a JSON object with lat and lng.`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            lat: { type: Type.NUMBER },
+            lng: { type: Type.NUMBER }
+          },
+          required: ["lat", "lng"]
+        }
+      }
+    });
+    // Check if empty or null text
+    if (!response.text) return null;
+    return JSON.parse(response.text);
+  } catch (error) {
+    console.error("Geocoding Error:", error);
+    return null;
+  }
+};
+
+export const generateNextActivitySuggestion = async (currentItems: ItineraryItem[]): Promise<Partial<ItineraryItem> | null> => {
+  try {
+    const context = currentItems.map(i => `${i.time}: ${i.activity} at ${i.location}`).join('\n');
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: `Given this itinerary for a day in Seoul:\n${context}\n\nSuggest ONE next logical activity or place nearby. Return JSON.`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            time: { type: Type.STRING },
+            activity: { type: Type.STRING },
+            location: { type: Type.STRING },
+            notes: { type: Type.STRING },
+            lat: { type: Type.NUMBER },
+            lng: { type: Type.NUMBER },
+            weather: {
+                type: Type.OBJECT,
+                properties: {
+                  temp: { type: Type.NUMBER },
+                  condition: { type: Type.STRING },
+                  icon: { type: Type.STRING }
+                }
+              }
+          },
+          required: ["activity", "location", "time"]
+        }
+      }
+    });
+    return JSON.parse(response.text || "null");
+  } catch (error) {
+    console.error("Suggestion Error:", error);
+    return null;
   }
 };
