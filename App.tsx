@@ -47,13 +47,8 @@ const App: React.FC = () => {
             <h1 className="text-3xl font-hand font-bold text-ink transform rotate-1">Trip</h1>
         </div>
         
-        {/* User Search Bar Fake UI */}
-        <div className="flex-1 mx-3 h-8 border-2 border-ink rounded-lg bg-white flex items-center px-2 transform rotate-1">
-             <Search size={14} className="text-ink mr-2"/>
-             <div className="w-full h-1 bg-gray-100 rounded"></div>
-        </div>
-
-        <div className="flex -space-x-2">
+        {/* Right side: User Avatars only (Search bar removed) */}
+        <div className="flex -space-x-2 ml-auto">
            {users.slice(0, 3).map((u, i) => (
                <div key={i} className="w-8 h-8 rounded-full bg-white border-2 border-ink flex items-center justify-center text-xs font-bold shadow-sm">
                    {u.name.charAt(0)}
@@ -88,9 +83,7 @@ const App: React.FC = () => {
             <CreditCard size={28} strokeWidth={2.5} />
           </button>
           
-          <div className="w-7 h-7 rounded-full border-2 border-ink flex items-center justify-center bg-highlight">
-             <Users size={16} className="text-ink"/>
-          </div>
+          {/* User Icon removed from here */}
         </div>
       </nav>
     </div>

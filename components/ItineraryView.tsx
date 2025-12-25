@@ -181,8 +181,8 @@ const ItineraryView: React.FC<Props> = ({ items }) => {
       </div>
 
       {/* Date & Day Selection */}
-      <div className="flex flex-col items-center mb-6 gap-4">
-          <div className="bg-white border-2 border-ink rounded-full px-4 py-2 flex items-center gap-3 shadow-doodle-sm transform -rotate-1">
+      <div className="flex flex-col items-center mb-6 gap-6">
+          <div className="bg-white border-2 border-ink rounded-full px-4 py-2 flex items-center gap-3 shadow-doodle-sm transform -rotate-1 z-10">
               <Calendar size={16} className="text-marker"/>
               <input 
                   type="date" 
@@ -199,7 +199,7 @@ const ItineraryView: React.FC<Props> = ({ items }) => {
               />
           </div>
 
-          <div className="flex gap-2 overflow-x-auto no-scrollbar w-full px-2 justify-start md:justify-center">
+          <div className="flex gap-2 overflow-x-auto no-scrollbar w-full px-2 justify-start md:justify-center py-2">
             {daysList.map(day => (
               <button
                 key={day}

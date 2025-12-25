@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { MapPin, Navigation, X, Search, List, Crosshair, Trash2, Calendar, ArrowRight, TrainFront, Bus, Footprints, Loader2, Plus, Sparkles, Layers, Eye, EyeOff } from 'lucide-react';
+import { MapPin, Navigation, X, Search, List, Crosshair, Trash2, Calendar, ArrowRight, TrainFront, Bus, Footprints, Loader2, Plus, Sparkles, Layers, Eye, EyeOff, AlertCircle, CheckCircle } from 'lucide-react';
 import { parseLocationsFromText, calculateRoute, RouteOption, getCoordinatesForLocation } from '../services/geminiService';
 import { ItineraryItem, MapMarker } from '../types';
 import { subscribeToMarkers, addMapMarker, clearAllMarkers, updateItineraryItem } from '../services/firebaseService';
@@ -29,16 +29,47 @@ const MapView: React.FC<Props> = ({ itineraryItems = [] }) => {
   const [selectedScheduleDay, setSelectedScheduleDay] = useState(1);
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
 
+  // Map Visibility State (Per Day)
+  const [hiddenDays, setHiddenDays] = useState<number[]>([]);
+
   const [routeStart, setRouteStart] = useState('');
   const [routeEnd, setRouteEnd] = useState('');
   const [routeResults, setRouteResults] = useState<RouteOption[]>([]);
   const [isCalculating, setIsCalculating] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+
+  // Custom Modal State (Replacements for alert/confirm)
+  const [modalConfig, setModalConfig] = useState<{
+      isOpen: boolean;
+      type: 'alert' | 'confirm';
+      message: string;
+      onConfirm?: () => void;
+  }>({ isOpen: false, type: 'alert', message: '' });
   
   const mapRef = useRef<any>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const markersRef = useRef<any[]>([]);
   const userMarkerRef = useRef<any>(null);
+
+  // Helper functions for Dialogs
+  const safeAlert = (message: string) => {
+      setModalConfig({ isOpen: true, type: 'alert', message });
+  };
+
+  const safeConfirm = (message: string, onConfirm: () => void) => {
+      setModalConfig({ isOpen: true, type: 'confirm', message, onConfirm });
+  };
+
+  const closeModal = () => {
+      setModalConfig(prev => ({ ...prev, isOpen: false }));
+  };
+
+  const handleConfirmAction = () => {
+      if (modalConfig.onConfirm) {
+          modalConfig.onConfirm();
+      }
+      closeModal();
+  };
 
   // Init Map
   useEffect(() => {
@@ -58,12 +89,20 @@ const MapView: React.FC<Props> = ({ itineraryItems = [] }) => {
   // Update Markers on Map (General Locations)
   useEffect(() => {
     if (!mapRef.current) return;
+    
+    // Always clear existing markers first
     markersRef.current.forEach(m => m.remove());
     markersRef.current = [];
 
     locations.forEach((loc) => {
       const isItinerary = loc.type === 'itinerary';
       const dayIndex = (loc.day || 1) - 1;
+      
+      // Filter logic: If it's an itinerary item and its day is in hiddenDays, skip it.
+      if (isItinerary && loc.day && hiddenDays.includes(loc.day)) {
+          return;
+      }
+
       const color = isItinerary ? DAY_COLORS[dayIndex % DAY_COLORS.length] : '#FF4500'; // Default Orange for search
       
       // Pin Icon SVG - Hand drawn style pin
@@ -101,7 +140,7 @@ const MapView: React.FC<Props> = ({ itineraryItems = [] }) => {
       marker.bindPopup(popupContent, { minWidth: 150 });
       markersRef.current.push(marker);
     });
-  }, [locations]); 
+  }, [locations, hiddenDays]); 
 
   // User Location Marker (Square Cat)
   useEffect(() => {
@@ -144,7 +183,7 @@ const MapView: React.FC<Props> = ({ itineraryItems = [] }) => {
              if (mapRef.current) mapRef.current.setView([latitude, longitude], 15);
          });
      } else {
-         alert("Geolocation not supported");
+         safeAlert("Geolocation not supported by your browser");
      }
   };
 
@@ -157,53 +196,58 @@ const MapView: React.FC<Props> = ({ itineraryItems = [] }) => {
         if (mapRef.current) mapRef.current.setView([results[0].lat, results[0].lng], 14);
         setSingleInput('');
     } else {
-        alert("Couldn't find that place. Try a different name!");
+        safeAlert("Couldn't find that place. Try a different name!");
     }
   };
 
-  // 2. Import Itinerary (Revised Logic - Robust)
+  // 2. Import Itinerary (Refactored to use Custom Modal)
   const handleImportItinerary = async () => {
-    if (itineraryItems.length === 0) {
-        alert("Your itinerary is empty! Go to Plan tab first.");
+    if (!itineraryItems || itineraryItems.length === 0) {
+        safeAlert("Your itinerary is empty! Go to Plan tab first.");
         return;
     }
     
-    if(confirm(`Import ${itineraryItems.length} items from your plan to the map? (This might take a moment to find coordinates)`)) {
+    // We check duplicates simply by name/day
+    const newItems = itineraryItems.filter(item => 
+        !locations.some(l => l.type === 'itinerary' && l.day === item.day && l.name === item.activity)
+    );
+
+    if (newItems.length === 0) {
+        safeAlert("All your itinerary items are already on the map!");
+        return;
+    }
+
+    // Replace native confirm with safeConfirm
+    safeConfirm(`Import ${newItems.length} new items from your plan to the map?`, async () => {
         setIsImporting(true);
         let successCount = 0;
         let failedCount = 0;
         
         try {
-            // Process every item
-            for (const item of itineraryItems) {
-                // Check if already mapped (based on name and day)
-                // Note: locations might be from search, so we check if an itinerary item of this name/day exists.
-                const exists = locations.some(l => l.type === 'itinerary' && l.day === item.day && l.name === item.activity);
-                if (exists) continue;
-
+            for (const item of newItems) {
                 let lat = item.lat;
                 let lng = item.lng;
 
-                // If no coords, fetch them individually now
-                if (!lat || !lng) {
-                    // Only try to fetch if we have a valid location or activity string
+                // 1. If we don't have coordinates, we MUST fetch them
+                if (typeof lat !== 'number' || typeof lng !== 'number') {
+                    // Try location first, then activity name as fallback
                     const query = item.location || item.activity;
-                    if (query && query.length > 2) {
+                    if (query && query.length > 1) {
                         const coords = await getCoordinatesForLocation(query);
                         if (coords) {
                             lat = coords.lat;
                             lng = coords.lng;
-                            // IMPORTANT: Save back to itinerary so we don't fetch again next time
-                            // We do this in background to avoid blocking too much, but need to await to ensure consistency for map add
+                            // Save back to itinerary so we don't fetch again next time
                             await updateItineraryItem(item.id, { lat, lng });
                         }
                     }
                 }
 
-                if (lat && lng) {
+                // 2. If we found coordinates, add to map markers
+                if (typeof lat === 'number' && typeof lng === 'number') {
                     await addMapMarker({
                          name: item.activity,
-                         description: item.location || '',
+                         description: item.location || 'Itinerary Activity',
                          lat: lat,
                          lng: lng,
                          type: 'itinerary',
@@ -213,26 +257,29 @@ const MapView: React.FC<Props> = ({ itineraryItems = [] }) => {
                     });
                     successCount++;
                 } else {
+                    console.warn(`Could not find coordinates for: ${item.activity}`);
                     failedCount++;
                 }
             }
             
             if (successCount > 0) {
-                alert(`Imported ${successCount} locations! Opening schedule.`);
+                safeAlert(`Successfully imported ${successCount} locations!`);
                 setShowSchedulePanel(true);
             } else if (failedCount > 0) {
-                alert(`Could not locate ${failedCount} items (likely missing specific location names). Try editing them in the Plan tab.`);
-            } else {
-                alert("No new items to import.");
+                safeAlert(`Imported ${successCount} items. Could not find locations for ${failedCount} items (try editing their names).`);
             }
         } catch (e) {
-            alert("Error importing. Please try again.");
-            console.error(e);
+            console.error("Import Error:", e);
+            safeAlert("Something went wrong while importing. Please check your connection.");
         } finally {
             setIsImporting(false);
         }
-    }
+    });
   };
+
+  const handleClearMap = () => {
+      safeConfirm('Clear all markers from the map?', () => clearAllMarkers());
+  }
 
   // 3. Route Calculation
   const handleCalculateRoute = async () => {
@@ -252,6 +299,13 @@ const MapView: React.FC<Props> = ({ itineraryItems = [] }) => {
       if(mapRef.current) {
           mapRef.current.setView([lat, lng], 16, { animate: true });
       }
+  };
+  
+  const toggleDayVisibility = (day: number, e: React.MouseEvent) => {
+      e.stopPropagation();
+      setHiddenDays(prev => 
+          prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
+      );
   };
 
   return (
@@ -280,7 +334,7 @@ const MapView: React.FC<Props> = ({ itineraryItems = [] }) => {
          <button 
              onClick={handleImportItinerary} 
              disabled={isImporting}
-             className="pointer-events-auto bg-highlight hand-border w-14 h-14 flex items-center justify-center shadow-doodle text-ink hover:scale-105 transition-transform bg-white" 
+             className="pointer-events-auto bg-highlight hand-border w-14 h-14 flex items-center justify-center shadow-doodle text-ink hover:scale-105 transition-transform bg-white disabled:opacity-50" 
              title="Import Itinerary"
          >
              {isImporting ? <Loader2 size={24} className="animate-spin"/> : <Calendar size={24}/>}
@@ -295,7 +349,7 @@ const MapView: React.FC<Props> = ({ itineraryItems = [] }) => {
          <button onClick={() => setShowRoutePanel(!showRoutePanel)} className={`pointer-events-auto hand-border w-14 h-14 flex items-center justify-center shadow-doodle transition-transform ${showRoutePanel ? 'bg-ink text-white' : 'bg-white text-ink'}`} title="Route Planner">
              <Navigation size={24}/>
          </button>
-         
+
          <div className="h-4"/> {/* Spacer */}
 
          {/* Standard Map Controls */}
@@ -303,28 +357,44 @@ const MapView: React.FC<Props> = ({ itineraryItems = [] }) => {
              <Crosshair size={28}/>
          </button>
 
-         <button onClick={() => { if(confirm('Clear map?')) clearAllMarkers(); }} className="pointer-events-auto bg-white hand-border w-14 h-14 flex items-center justify-center shadow-doodle text-ink hover:bg-gray-100">
+         <button onClick={handleClearMap} className="pointer-events-auto bg-white hand-border w-14 h-14 flex items-center justify-center shadow-doodle text-ink hover:bg-gray-100">
              <Trash2 size={24}/>
          </button>
       </div>
 
-      {/* Schedule Drawer (Updated UI) */}
+      {/* Schedule Drawer (Updated UI with Day Toggles) */}
       {showSchedulePanel && (
           <div className="absolute top-24 left-4 z-20 pointer-events-none">
               <div className="bg-white hand-border shadow-doodle pointer-events-auto animate-[float_0.3s_ease-out] w-64 max-h-[60vh] flex flex-col overflow-hidden">
                   
-                  {/* Header: Horizontal Day Scroll */}
+                  {/* Header: Horizontal Day Scroll with Eye Toggles */}
                   <div className="bg-gray-50 border-b-2 border-ink p-2 flex overflow-x-auto no-scrollbar gap-2">
                      {/* Find max day from locations or default to 5 */}
-                     {Array.from({length: Math.max(5, ...locations.map(l => l.day || 0))}, (_, i) => i + 1).map(day => (
-                         <button 
-                            key={day}
-                            onClick={() => setSelectedScheduleDay(day)}
-                            className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-bold border-2 whitespace-nowrap transition-colors ${selectedScheduleDay === day ? 'bg-ink text-white border-ink' : 'bg-white text-ink border-gray-300'}`}
-                         >
-                            Day {day}
-                         </button>
-                     ))}
+                     {Array.from({length: Math.max(5, ...locations.map(l => l.day || 0))}, (_, i) => i + 1).map(day => {
+                         const isHidden = hiddenDays.includes(day);
+                         const isSelected = selectedScheduleDay === day;
+                         return (
+                             <div 
+                                key={day}
+                                className={`flex-shrink-0 flex items-center rounded-full border-2 transition-colors ${isSelected ? 'bg-ink border-ink' : 'bg-white border-gray-300'}`}
+                             >
+                                 <button 
+                                    onClick={() => setSelectedScheduleDay(day)}
+                                    className={`px-3 py-1 text-xs font-bold rounded-l-full whitespace-nowrap ${isSelected ? 'text-white' : 'text-ink'}`}
+                                 >
+                                    Day {day}
+                                 </button>
+                                 <div className={`w-[1px] h-4 ${isSelected ? 'bg-white/30' : 'bg-gray-300'}`}></div>
+                                 <button
+                                     onClick={(e) => toggleDayVisibility(day, e)}
+                                     className={`px-2 py-1 rounded-r-full hover:bg-black/10 flex items-center justify-center ${isSelected ? 'text-white' : 'text-gray-400'}`}
+                                     title={isHidden ? "Show on Map" : "Hide from Map"}
+                                 >
+                                     {isHidden ? <EyeOff size={12}/> : <Eye size={12}/>}
+                                 </button>
+                             </div>
+                         );
+                     })}
                   </div>
 
                   {/* Body: Vertical Location List */}
@@ -341,7 +411,9 @@ const MapView: React.FC<Props> = ({ itineraryItems = [] }) => {
                                   >
                                       <div className="font-bold text-xs text-ink w-10 text-right">{marker.time || '--:--'}</div>
                                       <div className="flex-1">
-                                          <div className="font-bold text-sm text-ink group-hover:text-marker line-clamp-1">{marker.name}</div>
+                                          <div className={`font-bold text-sm group-hover:text-marker line-clamp-1 ${hiddenDays.includes(marker.day || 0) ? 'text-gray-400 line-through' : 'text-ink'}`}>
+                                              {marker.name}
+                                          </div>
                                           <div className="text-[10px] text-gray-400 line-clamp-1">{marker.description}</div>
                                       </div>
                                       <ArrowRight size={14} className="text-gray-300 group-hover:text-marker"/>
@@ -410,6 +482,60 @@ const MapView: React.FC<Props> = ({ itineraryItems = [] }) => {
                     {routeResults.length === 0 && !isCalculating && (
                         <div className="text-center text-xs text-gray-400 font-bold py-2">Enter locations to see 3 options</div>
                     )}
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* CUSTOM MODAL OVERLAY (To replace native alert/confirm) */}
+      {modalConfig.isOpen && (
+        <div className="fixed inset-0 z-[50] flex items-center justify-center p-4 bg-ink/30 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
+            <div className="bg-white hand-border rounded-[20px] p-6 w-full max-w-sm shadow-doodle relative animate-[float_0.3s_ease-out]">
+                <div className="flex flex-col items-center text-center">
+                    <div className="mb-4">
+                        {modalConfig.type === 'confirm' ? (
+                            <div className="w-12 h-12 rounded-full bg-highlight flex items-center justify-center border-2 border-ink">
+                                <AlertCircle size={32} className="text-ink"/>
+                            </div>
+                        ) : (
+                             <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center border-2 border-ink">
+                                <AlertCircle size={32} className="text-ink"/>
+                            </div>
+                        )}
+                    </div>
+                    
+                    <h3 className="text-xl font-hand font-bold text-ink mb-2">
+                        {modalConfig.type === 'confirm' ? 'Are you sure?' : 'Notice'}
+                    </h3>
+                    <p className="text-sm font-bold text-gray-600 mb-6 whitespace-pre-wrap">
+                        {modalConfig.message}
+                    </p>
+
+                    <div className="flex gap-3 w-full">
+                        {modalConfig.type === 'confirm' ? (
+                            <>
+                                <button 
+                                    onClick={closeModal} 
+                                    className="flex-1 py-3 bg-white text-ink border-2 border-ink rounded-xl font-bold hover:bg-gray-50 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button 
+                                    onClick={handleConfirmAction} 
+                                    className="flex-1 py-3 bg-marker text-white border-2 border-ink rounded-xl font-bold hover:bg-red-600 shadow-sm transition-colors"
+                                >
+                                    Yes, Do It!
+                                </button>
+                            </>
+                        ) : (
+                            <button 
+                                onClick={closeModal} 
+                                className="w-full py-3 bg-ink text-white border-2 border-ink rounded-xl font-bold hover:bg-blue-800 shadow-sm transition-colors"
+                            >
+                                OK
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>
