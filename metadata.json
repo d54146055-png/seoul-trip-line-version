@@ -1,0 +1,7 @@
+{
+  "name": "Copy of SeoulMate 線條版",
+  "description": "The ultimate AI-powered travel companion for your Seoul trip. Features smart itinerary planning, expense splitting, and AI-guided map exploration.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}

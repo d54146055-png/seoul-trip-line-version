@@ -1,0 +1,111 @@
+
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>SeoulMate - Travel App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              cream: '#F9F7F2',
+              sand: '#EBE5D9',
+              cocoa: '#5D4037',
+              latte: '#A1887F',
+              clay: '#8D6E63',
+              accent: '#FF7043', 
+              softwhite: '#FFFCF9'
+            },
+            fontFamily: {
+              sans: ['"Noto Sans KR"', 'sans-serif'],
+              serif: ['"DM Serif Display"', 'serif'],
+            },
+            padding: {
+              'safe': 'env(safe-area-inset-bottom)',
+              'safe-top': 'env(safe-area-inset-top)',
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      html, body, #root {
+        height: 100%;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+      body {
+        font-family: 'Noto Sans KR', sans-serif;
+        background-color: #F9F7F2;
+        color: #5D4037;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      
+      @keyframes float {
+        0% { transform: translateY(0px); }
+        50% { transform: translateY(-5px); }
+        100% { transform: translateY(0px); }
+      }
+      
+      /* Leaflet Customization */
+      .leaflet-container {
+        height: 100% !important;
+        width: 100% !important;
+        background: #F9F7F2 !important;
+        z-index: 1;
+      }
+      .leaflet-popup-content-wrapper {
+        border-radius: 1.5rem !important;
+        padding: 4px !important;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1) !important;
+      }
+      .leaflet-popup-tip {
+        display: none !important;
+      }
+      .custom-div-icon {
+        background: transparent !important;
+        border: none !important;
+      }
+      .leaflet-control-zoom {
+        border: none !important;
+        margin-right: 15px !important;
+        margin-bottom: 20px !important;
+      }
+      .leaflet-control-zoom-in, .leaflet-control-zoom-out {
+        border-radius: 12px !important;
+        margin-bottom: 5px !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://aistudiocdn.com/react@^19.2.1/",
+    "react": "https://aistudiocdn.com/react@^19.2.1",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.32.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.556.0",
+    "recharts": "https://aistudiocdn.com/recharts@^3.5.1",
+    "firebase/app": "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js",
+    "firebase/firestore": "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js",
+    "firebase/": "https://aistudiocdn.com/firebase@^12.6.0/"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
