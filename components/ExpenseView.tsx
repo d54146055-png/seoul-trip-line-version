@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Expense, User } from '../types';
-import { Plus, ArrowRight, Trash2, RefreshCw, X, CheckSquare, Square, ClipboardList, Wallet, AlertCircle, UserCog } from 'lucide-react';
+import { Plus, ArrowRight, Trash2, RefreshCw, X, CheckSquare, Square, ClipboardList, Wallet, AlertCircle, UserCog, Image as ImageIcon } from 'lucide-react';
 import { addExpenseItem, addUser, deleteExpenseItem, updateUser, deleteUser } from '../services/firebaseService';
 
 // Moved WavyBorder outside to avoid re-creation and fix typing issues
@@ -28,14 +28,30 @@ const WavyBorder = ({children}: {children?: React.ReactNode}) => (
 );
 
 const DoodleBackground = React.memo(() => {
+  const [error, setError] = useState(false);
+
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none z-0 select-none bg-paper">
-        {/* Strictly use the user provided image, no random generation fallback */}
+      {!error ? (
         <img 
           src="/doodle_bg.jpg" 
           alt="Doodle Background" 
           className="w-full h-full object-cover opacity-[0.15]"
+          onError={() => setError(true)}
         />
+      ) : (
+         /* Fallback message instructing user where to put the file if missing */
+         <div className="w-full h-full flex items-center justify-center opacity-30">
+             <div className="text-ink font-bold text-center text-sm border-2 border-dashed border-ink p-6 rounded-2xl flex flex-col items-center gap-2">
+                 <ImageIcon size={32} />
+                 <p>
+                   背景圖片未找到<br/>
+                   請將圖片命名為 <strong>doodle_bg.jpg</strong><br/>
+                   並放在根目錄 (與 index.html 同層)
+                 </p>
+             </div>
+         </div>
+      )}
     </div>
   );
 });
