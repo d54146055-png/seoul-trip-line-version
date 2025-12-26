@@ -7,6 +7,14 @@ if (!API_KEY) {
   console.error("Gemini API Key is missing! Please check Vercel environment variables.");
 }
 
+const AVAILABLE_IMAGES = [
+  "assets/seoul_1.jpg",
+  "assets/seoul_2.jpg",
+  "assets/seoul_3.jpg",
+  "assets/seoul_4.jpg",
+  "assets/seoul_5.jpg"
+];
+
 // Fixed: Strictly following guidelines for GoogleGenAI initialization
 const ai = new GoogleGenAI({ apiKey: API_KEY || "" });
 
@@ -21,6 +29,12 @@ export const generateItinerarySuggestion = async (day: number, context: string, 
       Context/Vibe: ${context}.
       Include estimated weather for this time of year (Spring/Autumn usually best).
       IMPORTANT: Provide accurate latitude (lat) and longitude (lng) for each location if possible.
+      
+      *** IMPORTANT IMAGE RULE ***
+      For the 'image' field, you MUST select one image randomly from this exact list: ${AVAILABLE_IMAGES.join(", ")}.
+      Do NOT invent new filenames.
+      ***************************
+
       Return a JSON array of activities with times.`,
       config: {
         responseMimeType: "application/json",
@@ -35,6 +49,12 @@ export const generateItinerarySuggestion = async (day: number, context: string, 
               notes: { type: Type.STRING, description: "Helpful tip or transport info" },
               lat: { type: Type.NUMBER, description: "Latitude of the location" },
               lng: { type: Type.NUMBER, description: "Longitude of the location" },
+              // 這裡強制 AI 只能選清單裡的圖片
+              image: { 
+                type: Type.STRING, 
+                enum: AVAILABLE_IMAGES,
+                description: "Path to a valid asset image"
+              },
               weather: {
                 type: Type.OBJECT,
                 properties: {
@@ -44,7 +64,7 @@ export const generateItinerarySuggestion = async (day: number, context: string, 
                 }
               }
             },
-            required: ["time", "activity", "location"]
+            required: ["time", "activity", "location", "image"]
           }
         }
       }
