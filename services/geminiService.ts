@@ -8,11 +8,11 @@ if (!API_KEY) {
 }
 
 const AVAILABLE_IMAGES = [
-  "assets/seoul_1.jpg",
-  "assets/seoul_2.jpg",
-  "assets/seoul_3.jpg",
-  "assets/seoul_4.jpg",
-  "assets/seoul_5.jpg"
+  "assets/seoul_1.png",
+  "assets/seoul_2.png",
+  "assets/seoul_3.png",
+  "assets/seoul_4.png",
+  "assets/seoul_5.png"
 ];
 
 // Fixed: Strictly following guidelines for GoogleGenAI initialization
@@ -70,16 +70,21 @@ export const generateItinerarySuggestion = async (day: number, context: string, 
       }
     });
 
-    const items = JSON.parse(response.text || "[]");
-    return items.map((item: any) => ({
+   const items = JSON.parse(response.text || "[]");
+  
+    
+   return items.map((item: any) => ({
       ...item,
-      day
+      day,
+      // 這裡非常重要！截圖顯示 Firebase 報錯就是因為少了這行
+      notes: item.notes || "", 
+      
+      // 這裡確保萬一 AI 選錯，還有預設圖可以用
+      image: item.image || "assets/seoul_1.png", 
+      
+      lat: item.lat || 37.5665, 
+      lng: item.lng || 126.9780 
     }));
-  } catch (error) {
-    console.error("Gemini Itinerary Error:", error);
-    return [];
-  }
-};
 
 export const parseLocationsFromText = async (text: string): Promise<ParsedLocation[]> => {
   try {
