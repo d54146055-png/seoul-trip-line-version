@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { ItineraryItem } from '../types';
-import { Plus, Trash2, Wand2, Loader2, Sparkles, ChevronUp, Calendar, Edit2, ArrowRight, MapPin, Image as ImageIcon, Dice5 } from 'lucide-react';
+import { Plus, Trash2, Wand2, Loader2, Sparkles, ChevronUp, Calendar, Edit2, ArrowRight, MapPin } from 'lucide-react';
 import { generateItinerarySuggestion, generateNextActivitySuggestion, getCoordinatesForLocation } from '../services/geminiService';
 import { addItineraryItem, deleteItineraryItem, updateItineraryItem, subscribeToTripSettings, updateTripSettings } from '../services/firebaseService';
 import { ICON_STAR, ICON_PAGODA, ICON_LION, ICON_THUMB_BEAR, ICON_SQUARE_CAT, ICON_HEART_DOODLE, ICON_SPARKLE } from '../utils/icons';
@@ -82,73 +82,16 @@ const ItineraryView: React.FC<Props> = ({ items }) => {
       setIsModalOpen(true);
   };
 
-// ★★★ 加上 async 在括號前面
-const handleSaveItem = async () => { 
-    if (!newItem.activity || !newItem.time) {
-        alert("Please fill in time and activity!");
-        return;
-    }
+  const handleSaveItem = async () => {
+    if (newItem.activity && newItem.time && newItem.location) {
+      setIsSaving(true);
+      let coords = { lat: newItem.lat, lng: newItem.lng };
+      if (!coords.lat || !coords.lng) {
+          const fetched = await getCoordinatesForLocation(newItem.location);
+          if (fetched) coords = fetched;
+      }
 
-    try {
-        if (editingItemId) {
-            // 因為這裡用了 await，所以上面必須要有 async
-            await updateItineraryItem(editingItemId, { 
-                time: newItem.time,
-                activity: newItem.activity,
-                location: newItem.location,
-                notes: newItem.notes,
-                imageUrl: newItem.imageUrl || getRandomImage() // 確保這裡沒錯
-            });
-        } else {
-            // 新增模式
-            await addItineraryItem({
-                ...newItem,
-                day: selectedDay,
-                imageUrl: newItem.imageUrl || getRandomImage()
-            });
-        }
-        // ... (後面的程式碼不用動)
-        setIsModalOpen(false);
-        setEditingItemId(null);
-        setNewItem({ time: '', activity: '', location: '', notes: '', imageUrl: '' });
-    } catch (error) {
-        console.error("Error saving item:", error);
-        alert("Failed to save item. Please try again.");
-    }
-};
-      // ----------------------------------------------------
-
-      if (editingItemId) {
-          await updateItineraryItem(editingItemId, {
-             time: newItem.time,
-             activity: newItem.activity,
-             location: newItem.location,
-             notes: newItem.notes || '',
-             lat: coords.lat,
-             lng: coords.lng,
-             imageUrl: imageToUse // 使用修正後的變數
-          });
-      } else {
-          await addItineraryItem({
-            time: newItem.time!,
-            activity: newItem.activity!,
-            location: newItem.location,
-            notes: newItem.notes || '',
-            day: selectedDay,
-            weather: { temp: 20, condition: 'sunny', icon: '☀️' },
-            lat: coords.lat,
-            lng: coords.lng,
-            imageUrl: imageToUse || '' // 使用修正後的變數
-          });
-      }
-      setIsSaving(false);
-      setIsModalOpen(false);
-      setEditingItemId(null);
-      setNewItem({ time: '09:00', day: selectedDay });
-    }
-  };
-
-      // Logic: Use provided URL, OR existing one (if editing), OR pick a random one
+      // Logic: Use provided URL (if editing and exists), OR pick a random one for new items
       const imageToUse = newItem.imageUrl || (editingItemId ? undefined : getRandomImage());
 
       if (editingItemId) {
@@ -182,45 +125,45 @@ const handleSaveItem = async () => {
   };
 
   const handleGenerate = async () => {
-    setIsGenerating(true);
-    const dateStr = getDayDate(selectedDay);
-    const context = `Fun, Doodly, Creative trip. ${dateStr ? `Date: ${dateStr} (Predict weather for this specific date).` : ''}`;
-    const suggestedItems = await generateItinerarySuggestion(selectedDay, context, targetAreas);
-    
-    // Automatically assign random images to AI suggestions
-    for (const item of suggestedItems) {
-        await addItineraryItem({
-            ...item,
-            // ★★★ 修正這裡：AI 選圖後，馬上轉成 png
-            imageUrl: getRandomImage()?.replace('.jpg', '.png')
-        });
-    }
-    
-    setIsGenerating(false);
-    setIsPlanModalOpen(false);
-  };
- const handleAppendAI = async () => {
-      setIsAppending(true);
-      const suggestion = await generateNextActivitySuggestion(dayItems);
-      if (suggestion && suggestion.activity && suggestion.time && suggestion.location) {
-          const coords = await getCoordinatesForLocation(suggestion.location);
-          await addItineraryItem({
-              time: suggestion.time,
-              activity: suggestion.activity,
-              location: suggestion.location,
-              notes: suggestion.notes,
-              day: selectedDay,
-              lat: coords?.lat,
-              lng: coords?.lng,
-              weather: suggestion.weather,
-              // ★★★ 修正這裡：AI 推薦活動選圖後，馬上轉成 png
-              imageUrl: getRandomImage()?.replace('.jpg', '.png') 
-          });
-      } else {
-          alert("Couldn't think of anything nearby! Try adding manually.");
-      }
-      setIsAppending(false);
-  };
+    setIsGenerating(true);
+    const dateStr = getDayDate(selectedDay);
+    const context = `Fun, Doodly, Creative trip. ${dateStr ? `Date: ${dateStr} (Predict weather for this specific date).` : ''}`;
+    const suggestedItems = await generateItinerarySuggestion(selectedDay, context, targetAreas);
+    
+    // Automatically assign random images to AI suggestions
+    for (const item of suggestedItems) {
+        await addItineraryItem({
+            ...item,
+            imageUrl: getRandomImage()
+        });
+    }
+    
+    setIsGenerating(false);
+    setIsPlanModalOpen(false);
+  };
+
+  const handleAppendAI = async () => {
+      setIsAppending(true);
+      const suggestion = await generateNextActivitySuggestion(dayItems);
+      if (suggestion && suggestion.activity && suggestion.time && suggestion.location) {
+          const coords = await getCoordinatesForLocation(suggestion.location);
+          await addItineraryItem({
+              time: suggestion.time,
+              activity: suggestion.activity,
+              location: suggestion.location,
+              notes: suggestion.notes,
+              day: selectedDay,
+              lat: coords?.lat,
+              lng: coords?.lng,
+              weather: suggestion.weather,
+              imageUrl: getRandomImage() // Auto assign image
+          });
+      } else {
+          alert("Couldn't think of anything nearby! Try adding manually.");
+      }
+      setIsAppending(false);
+  };
+
   const getIcon = (idx: number) => {
       const icons = [ICON_PAGODA, ICON_LION, ICON_THUMB_BEAR, ICON_SQUARE_CAT];
       return icons[idx % icons.length];
@@ -467,25 +410,6 @@ const handleSaveItem = async () => {
                      onChange={e => setNewItem({...newItem, location: e.target.value})}
                      className="w-full hand-input font-bold"
                    />
-               </div>
-
-               {/* New Image URL Input with Auto-pick Note */}
-               <div>
-                   <label className="block text-xs font-bold text-ink mb-1 flex items-center gap-1 justify-between">
-                       <span className="flex items-center gap-1"><ImageIcon size={12}/> Image</span>
-                       <button onClick={() => setNewItem({...newItem, imageUrl: getRandomImage()})} className="text-marker text-[10px] flex items-center gap-1 hover:underline">
-                           <Dice5 size={10}/> Pick Random
-                       </button>
-                   </label>
-                   <input 
-                     placeholder="Leave empty for auto-select" 
-                     value={newItem.imageUrl || ''} 
-                     onChange={e => setNewItem({...newItem, imageUrl: e.target.value})}
-                     className="w-full hand-input font-bold text-sm"
-                   />
-                   <p className="text-[10px] text-gray-400 font-bold mt-1">
-                       Leave blank to use a photo from your <code className="bg-gray-100 px-1 rounded">assets/</code> folder.
-                   </p>
                </div>
 
                <div>

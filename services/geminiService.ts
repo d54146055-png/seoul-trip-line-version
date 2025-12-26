@@ -1,40 +1,20 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { ItineraryItem, ParsedLocation } from "../types";
 
-
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-if (!API_KEY) {
-  console.error("Gemini API Key is missing! Please check Vercel environment variables.");
-}
-
-const AVAILABLE_IMAGES = [
-  "assets/seoul_1.png",
-  "assets/seoul_2.png",
-  "assets/seoul_3.png",
-  "assets/seoul_4.png",
-  "assets/seoul_5.png"
-];
-
 // Fixed: Strictly following guidelines for GoogleGenAI initialization
-const ai = new GoogleGenAI({ apiKey: API_KEY || "" });
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const generateItinerarySuggestion = async (day: number, context: string, areas?: string): Promise<Omit<ItineraryItem, 'id'>[]> => {
   try {
     const areaPrompt = areas ? `Specifically focusing on these areas/districts: ${areas}. Arrange the route logically to minimize travel time between these districts.` : '';
     
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3-flash-preview",
       contents: `Suggest a realistic 1-day itinerary for Day ${day} of a trip to Seoul, South Korea. 
       ${areaPrompt}
       Context/Vibe: ${context}.
       Include estimated weather for this time of year (Spring/Autumn usually best).
       IMPORTANT: Provide accurate latitude (lat) and longitude (lng) for each location if possible.
-      
-      *** IMPORTANT IMAGE RULE ***
-      For the 'image' field, you MUST select one image randomly from this exact list: ${AVAILABLE_IMAGES.join(", ")}.
-      Do NOT invent new filenames.
-      ***************************
-
       Return a JSON array of activities with times.`,
       config: {
         responseMimeType: "application/json",
@@ -49,12 +29,6 @@ export const generateItinerarySuggestion = async (day: number, context: string, 
               notes: { type: Type.STRING, description: "Helpful tip or transport info" },
               lat: { type: Type.NUMBER, description: "Latitude of the location" },
               lng: { type: Type.NUMBER, description: "Longitude of the location" },
-              // 這裡強制 AI 只能選清單裡的圖片
-              image: { 
-                type: Type.STRING, 
-                enum: AVAILABLE_IMAGES,
-                description: "Path to a valid asset image"
-              },
               weather: {
                 type: Type.OBJECT,
                 properties: {
@@ -64,32 +38,27 @@ export const generateItinerarySuggestion = async (day: number, context: string, 
                 }
               }
             },
-            required: ["time", "activity", "location", "image"]
+            required: ["time", "activity", "location"]
           }
         }
       }
     });
 
-   const items = JSON.parse(response.text || "[]");
-  
-    
-   return items.map((item: any) => ({
+    const items = JSON.parse(response.text || "[]");
+    return items.map((item: any) => ({
       ...item,
-      day,
-      // 這裡非常重要！截圖顯示 Firebase 報錯就是因為少了這行
-      notes: item.notes || "", 
-      
-      // 這裡確保萬一 AI 選錯，還有預設圖可以用
-      image: item.image || "assets/seoul_1.png", 
-      
-      lat: item.lat || 37.5665, 
-      lng: item.lng || 126.9780 
+      day
     }));
+  } catch (error) {
+    console.error("Gemini Itinerary Error:", error);
+    return [];
+  }
+};
 
 export const parseLocationsFromText = async (text: string): Promise<ParsedLocation[]> => {
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3-flash-preview",
       contents: `Extract all travel locations/places in Seoul mentioned in this text. 
       For each location, provide coordinates.
       Return a JSON array. 
@@ -128,7 +97,7 @@ export interface RouteOption {
 export const calculateRoute = async (from: string, to: string): Promise<RouteOption[]> => {
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3-flash-preview",
       contents: `As a Seoul travel expert, estimate the travel time and best routes from "${from}" to "${to}" within Seoul. 
       Provide 3 options: one for Subway, one for Bus, and one for Walking. 
       Return a JSON array of route options.`,
@@ -158,7 +127,7 @@ export const calculateRoute = async (from: string, to: string): Promise<RouteOpt
 export const parseActivityFromText = async (text: string): Promise<Partial<ItineraryItem>> => {
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3-flash-preview",
       contents: `Analyze this text and extract a single travel itinerary activity item for a trip to Seoul.
       Text: "${text}"
       Return JSON.`,
@@ -193,7 +162,7 @@ export const chatWithTravelGuide = async (
       : message;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3-flash-preview",
       contents: prompt,
       config: {
         systemInstruction: `You are a savvy local guide for Seoul, South Korea. 
@@ -234,7 +203,7 @@ export const chatWithTravelGuide = async (
 export const getCoordinatesForLocation = async (location: string): Promise<{lat: number, lng: number} | null> => {
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3-flash-preview",
       contents: `Get the accurate latitude and longitude for this place in Seoul: "${location}". 
       If it is a generic activity (e.g. "Lunch", "Rest", "Subway") without a specific location name, return null. 
       Return a JSON object with lat and lng.`,
@@ -263,7 +232,7 @@ export const generateNextActivitySuggestion = async (currentItems: ItineraryItem
   try {
     const context = currentItems.map(i => `${i.time}: ${i.activity} at ${i.location}`).join('\n');
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3-flash-preview",
       contents: `Given this itinerary for a day in Seoul:\n${context}\n\nSuggest ONE next logical activity or place nearby. Return JSON.`,
       config: {
         responseMimeType: "application/json",
