@@ -165,45 +165,45 @@ const handleSaveItem = async () => {
   };
 
   const handleGenerate = async () => {
-    setIsGenerating(true);
-    const dateStr = getDayDate(selectedDay);
-    const context = `Fun, Doodly, Creative trip. ${dateStr ? `Date: ${dateStr} (Predict weather for this specific date).` : ''}`;
-    const suggestedItems = await generateItinerarySuggestion(selectedDay, context, targetAreas);
-    
-    // Automatically assign random images to AI suggestions
-    for (const item of suggestedItems) {
-        await addItineraryItem({
-            ...item,
-            imageUrl: getRandomImage()
-        });
-    }
-    
-    setIsGenerating(false);
-    setIsPlanModalOpen(false);
-  };
-
-  const handleAppendAI = async () => {
-      setIsAppending(true);
-      const suggestion = await generateNextActivitySuggestion(dayItems);
-      if (suggestion && suggestion.activity && suggestion.time && suggestion.location) {
-          const coords = await getCoordinatesForLocation(suggestion.location);
-          await addItineraryItem({
-              time: suggestion.time,
-              activity: suggestion.activity,
-              location: suggestion.location,
-              notes: suggestion.notes,
-              day: selectedDay,
-              lat: coords?.lat,
-              lng: coords?.lng,
-              weather: suggestion.weather,
-              imageUrl: getRandomImage() // Auto assign image
-          });
-      } else {
-          alert("Couldn't think of anything nearby! Try adding manually.");
-      }
-      setIsAppending(false);
-  };
-
+    setIsGenerating(true);
+    const dateStr = getDayDate(selectedDay);
+    const context = `Fun, Doodly, Creative trip. ${dateStr ? `Date: ${dateStr} (Predict weather for this specific date).` : ''}`;
+    const suggestedItems = await generateItinerarySuggestion(selectedDay, context, targetAreas);
+    
+    // Automatically assign random images to AI suggestions
+    for (const item of suggestedItems) {
+        await addItineraryItem({
+            ...item,
+            // ★★★ 修正這裡：AI 選圖後，馬上轉成 png
+            imageUrl: getRandomImage()?.replace('.jpg', '.png')
+        });
+    }
+    
+    setIsGenerating(false);
+    setIsPlanModalOpen(false);
+  };
+ const handleAppendAI = async () => {
+      setIsAppending(true);
+      const suggestion = await generateNextActivitySuggestion(dayItems);
+      if (suggestion && suggestion.activity && suggestion.time && suggestion.location) {
+          const coords = await getCoordinatesForLocation(suggestion.location);
+          await addItineraryItem({
+              time: suggestion.time,
+              activity: suggestion.activity,
+              location: suggestion.location,
+              notes: suggestion.notes,
+              day: selectedDay,
+              lat: coords?.lat,
+              lng: coords?.lng,
+              weather: suggestion.weather,
+              // ★★★ 修正這裡：AI 推薦活動選圖後，馬上轉成 png
+              imageUrl: getRandomImage()?.replace('.jpg', '.png') 
+          });
+      } else {
+          alert("Couldn't think of anything nearby! Try adding manually.");
+      }
+      setIsAppending(false);
+  };
   const getIcon = (idx: number) => {
       const icons = [ICON_PAGODA, ICON_LION, ICON_THUMB_BEAR, ICON_SQUARE_CAT];
       return icons[idx % icons.length];
