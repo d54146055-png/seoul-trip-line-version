@@ -82,14 +82,54 @@ const ItineraryView: React.FC<Props> = ({ items }) => {
       setIsModalOpen(true);
   };
 
-  const handleSaveItem = async () => {
-    if (newItem.activity && newItem.time && newItem.location) {
-      setIsSaving(true);
-      let coords = { lat: newItem.lat, lng: newItem.lng };
-      if (!coords.lat || !coords.lng) {
-          const fetched = await getCoordinatesForLocation(newItem.location);
-          if (fetched) coords = fetched;
+const handleSaveItem = async () => {
+    if (newItem.activity && newItem.time && newItem.location) {
+      setIsSaving(true);
+      let coords = { lat: newItem.lat, lng: newItem.lng };
+      if (!coords.lat || !coords.lng) {
+          const fetched = await getCoordinatesForLocation(newItem.location);
+          if (fetched) coords = fetched;
+      }
+
+      // Logic: Use provided URL, OR existing one (if editing), OR pick a random one
+      let imageToUse = newItem.imageUrl || (editingItemId ? undefined : getRandomImage());
+
+      // ★★★ 新增這段：自動修正 jpg 為 png (防呆機制) ★★★
+      // 如果圖片路徑包含 "assets/" 且結尾是 .jpg，強制改成 .png
+      if (imageToUse && imageToUse.includes('assets/') && imageToUse.endsWith('.jpg')) {
+          imageToUse = imageToUse.replace('.jpg', '.png');
       }
+      // ----------------------------------------------------
+
+      if (editingItemId) {
+          await updateItineraryItem(editingItemId, {
+             time: newItem.time,
+             activity: newItem.activity,
+             location: newItem.location,
+             notes: newItem.notes || '',
+             lat: coords.lat,
+             lng: coords.lng,
+             imageUrl: imageToUse // 使用修正後的變數
+          });
+      } else {
+          await addItineraryItem({
+            time: newItem.time!,
+            activity: newItem.activity!,
+            location: newItem.location,
+            notes: newItem.notes || '',
+            day: selectedDay,
+            weather: { temp: 20, condition: 'sunny', icon: '☀️' },
+            lat: coords.lat,
+            lng: coords.lng,
+            imageUrl: imageToUse || '' // 使用修正後的變數
+          });
+      }
+      setIsSaving(false);
+      setIsModalOpen(false);
+      setEditingItemId(null);
+      setNewItem({ time: '09:00', day: selectedDay });
+    }
+  };
 
       // Logic: Use provided URL, OR existing one (if editing), OR pick a random one
       const imageToUse = newItem.imageUrl || (editingItemId ? undefined : getRandomImage());
