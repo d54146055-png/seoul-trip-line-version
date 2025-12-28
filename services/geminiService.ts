@@ -8,7 +8,7 @@ if (!API_KEY) {
 }
 
 // Fixed: Strictly following guidelines for GoogleGenAI initialization
-const ai = new GoogleGenAI({ apiKey: API_KEY "" });
+const ai = new GoogleGenAI({ apiKey: API_KEY || "" });
 
 export const generateItinerarySuggestion = async (day: number, context: string, areas?: string): Promise<Omit<ItineraryItem, 'id'>[]> => {
   try {
