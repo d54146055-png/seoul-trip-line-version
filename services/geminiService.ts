@@ -1,8 +1,16 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { ItineraryItem, ParsedLocation } from "../types";
 
+const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+
+if (!API_KEY) {
+  console.error("Gemini API Key is missing! Please check Vercel environment variables.");
+}
+
+const ai = new GoogleGenAI({ apiKey: API_KEY "" });
+
 // Fixed: Strictly following guidelines for GoogleGenAI initialization
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const ai = new GoogleGenAI({ apiKey: process.env.VITE_GEMINI_API_KEY });
 
 export const generateItinerarySuggestion = async (day: number, context: string, areas?: string): Promise<Omit<ItineraryItem, 'id'>[]> => {
   try {
