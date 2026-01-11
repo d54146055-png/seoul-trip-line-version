@@ -1,12 +1,12 @@
-
 // ============================================================================
-// 設定您的圖庫 (Image Pool)
-// 1. 在專案根目錄建立一個資料夾叫做 "assets" (或直接放在根目錄)
-// 2. 將您的照片上傳進去
-// 3. 在下方的 ARRAY 中填入檔名
+// 設定您的 GitHub 圖庫 (Image Pool)
+// 1. 確保你的 Repo 是 Public (公開) 的
+// 2. 找出圖片的 Raw 網址前綴
 // ============================================================================
 
-const LOCAl_IMAGE_PATH = 'assets/'; // 如果照片放在 assets 資料夾內，請保留此設定。若放在根目錄，請改為 ''
+// 🔴 修改這裡：把你原本的 'assets/' 改成 GitHub 的 Raw 網址前綴
+// 格式通常是: https://raw.githubusercontent.com/[你的帳號]/[你的Repo名稱]/[分支名稱]/[資料夾路徑]/
+const GITHUB_BASE_URL = 'https://raw.githubusercontent.com/EricLiu/SeoulTrip/main/public/assets/'; 
 
 const MY_TRAVEL_PHOTOS = [
   'seoul_1.jpg',
@@ -15,15 +15,14 @@ const MY_TRAVEL_PHOTOS = [
   'cafe_vibes.jpg',
   'street_food.jpg',
   'palace.jpg',
-  // 您可以繼續往下新增更多照片檔名...
+  // 記得：每次上傳新照片到 Github，都要來這裡加檔名
 ];
 
 /**
- * 隨機從圖庫中選一張照片
- * Returns a formatted path (e.g., "assets/seoul_1.jpg")
+ * 隨機從 GitHub 圖庫中選一張照片
  */
 export const getRandomImage = (): string => {
   if (MY_TRAVEL_PHOTOS.length === 0) return '';
   const randomIndex = Math.floor(Math.random() * MY_TRAVEL_PHOTOS.length);
-  return `${LOCAl_IMAGE_PATH}${MY_TRAVEL_PHOTOS[randomIndex]}`;
+  return `${GITHUB_BASE_URL}${MY_TRAVEL_PHOTOS[randomIndex]}`;
 };
