@@ -100,8 +100,8 @@ const ItineraryView: React.FC<Props> = ({ items }) => {
              activity: newItem.activity,
              location: newItem.location,
              notes: newItem.notes || '',
-             lat: coords.lat,
-             lng: coords.lng,
+             lat: coords.lat || null,
+             lng: coords.lng || null,
              imageUrl: imageToUse // Will update if user changed it, or keep undefined/existing handled by logic
           });
       } else {
@@ -153,8 +153,8 @@ const ItineraryView: React.FC<Props> = ({ items }) => {
               location: suggestion.location,
               notes: suggestion.notes,
               day: selectedDay,
-              lat: coords?.lat,
-              lng: coords?.lng,
+              lat: coords?.lat || null,
+              lng: coords?.lng || null,
               weather: suggestion.weather,
               imageUrl: getRandomImage() // Auto assign image
           });
