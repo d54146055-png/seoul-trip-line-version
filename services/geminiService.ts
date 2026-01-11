@@ -12,7 +12,7 @@ if (!API_KEY) {
 const ai = new GoogleGenAI({ apiKey: API_KEY || "" });
 
 // 3. 統一模型版本
-const MODEL_NAME = "gemini-2.0-flash-exp"; 
+const MODEL_NAME = "gemini-2.5-flash"; 
 
 // --- 核心功能函式 ---
 
