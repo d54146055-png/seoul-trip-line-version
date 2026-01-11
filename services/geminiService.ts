@@ -191,36 +191,42 @@ export const chatWithTravelGuide = async (message: string, location?: { lat: num
 };
 
 // --- 修改重點：查詢座標加入重試機制，並加上 null 保護 ---
-export const getCoordinatesForLocation = async (location: string): Promise<{lat: number, lng: number} | null> => {
-  return retryOperation(async () => {
-    try {
-      // 常用地點寫死 (省錢技巧)
-      if (location.includes("Incheon Airport")) return { lat: 37.4602, lng: 126.4407 };
-      if (location.includes("Seoul Station")) return { lat: 37.5547, lng: 126.9707 };
+// src/services/geminiService.ts
 
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: `Return strictly JSON {lat, lng} for: "${location}" in Seoul. If generic, return null.`,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              lat: { type: Type.NUMBER },
-              lng: { type: Type.NUMBER }
-            },
-            required: ["lat", "lng"]
-          }
-        }
-      });
-      
-      if (!response.text) return null;
-      return JSON.parse(response.text);
-    } catch (error) {
-      console.error("Geocoding Error:", error);
-      return null;
+// ... 其他 import 保持不變
+
+/**
+ * 修改後的版本：使用 OpenStreetMap (Nominatim) 免費搜尋經緯度
+ * 不再消耗 Gemini AI 額度
+ */
+export const getCoordinatesForLocation = async (locationName: string): Promise<{ lat: number; lng: number } | null> => {
+  if (!locationName) return null;
+
+  try {
+    // 使用 Nominatim API 進行搜尋
+    // q: 搜尋關鍵字
+    // format: 回傳 json 格式
+    // limit: 只要 1 筆結果
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(locationName)}&limit=1`
+    );
+
+    const data = await response.json();
+
+    if (data && data.length > 0) {
+      return {
+        lat: parseFloat(data[0].lat),
+        lng: parseFloat(data[0].lon)
+      };
     }
-  }, 2, 2000); // 最多重試 2 次，間隔 2 秒
+    
+    console.warn(`找不到地點: ${locationName}`);
+    return null;
+
+  } catch (error) {
+    console.error("Geocoding error:", error);
+    return null;
+  }
 };
 
 export const generateNextActivitySuggestion = async (currentItems: ItineraryItem[]): Promise<Partial<ItineraryItem> | null> => {
