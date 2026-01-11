@@ -28,11 +28,14 @@ async function retryOperation<T>(operation: () => Promise<T>, retries = 3, delay
 
 // --- 主要功能區 ---
 
+// 修改 generateItinerarySuggestion
 export const generateItinerarySuggestion = async (day: number, context: string, areas?: string): Promise<Omit<ItineraryItem, 'id'>[]> => {
   return retryOperation(async () => {
     try {
       const areaPrompt = areas ? `Specifically focusing on these areas: ${areas}. Optimize route.` : '';
       
+      // 1. 修改 Prompt：移除了 lat, lng, weather 的要求
+      // 我們只要求 time, activity, location, notes
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash",
         contents: `Suggest a 1-day Seoul itinerary for Day ${day}. ${areaPrompt} Context: ${context}. Return JSON array.`,
@@ -45,18 +48,10 @@ export const generateItinerarySuggestion = async (day: number, context: string, 
               properties: {
                 time: { type: Type.STRING },
                 activity: { type: Type.STRING },
-                location: { type: Type.STRING },
+                location: { type: Type.STRING }, // AI 只要給地點名就好
                 notes: { type: Type.STRING },
-                lat: { type: Type.NUMBER },
-                lng: { type: Type.NUMBER },
-                weather: {
-                  type: Type.OBJECT,
-                  properties: {
-                    temp: { type: Type.NUMBER },
-                    condition: { type: Type.STRING },
-                    icon: { type: Type.STRING }
-                  }
-                }
+                // 移除 lat, lng
+                // 移除 weather
               },
               required: ["time", "activity", "location"]
             }
@@ -65,7 +60,26 @@ export const generateItinerarySuggestion = async (day: number, context: string, 
       });
 
       const items = JSON.parse(response.text || "[]");
-      return items.map((item: any) => ({ ...item, day }));
+
+      // 2. 後製處理 (Post-processing)
+      // 拿到 AI 的清單後，我們自己去查座標，不用 AI 猜
+      const enrichedItems = await Promise.all(items.map(async (item: any) => {
+        // 呼叫免費的 OpenStreetMap 函式
+        const coords = await getCoordinatesForLocation(item.location);
+        
+        return {
+          ...item,
+          day,
+          // 如果查得到就用查的，查不到就給個預設值或 null，讓前端處理
+          lat: coords ? coords.lat : 37.5665, 
+          lng: coords ? coords.lng : 126.9780,
+          // 天氣建議在前端顯示時再即時 fetch，這裡先不存，或者存 null
+          weather: null 
+        };
+      }));
+
+      return enrichedItems;
+
     } catch (error) {
       console.error("Gemini Itinerary Error:", error);
       return [];
