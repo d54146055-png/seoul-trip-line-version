@@ -14,6 +14,8 @@ const MY_TRAVEL_PHOTOS = [
   'seoul_3.jpg',
   'seoul_4.jpg',
   'seoul_5.jpg',
+  'seoul_6.jpg',
+  'seoul_7.jpg',
   // 記得：每次上傳新照片到 Github，都要來這裡加檔名
 ];
 
