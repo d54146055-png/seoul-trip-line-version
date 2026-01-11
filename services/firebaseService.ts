@@ -9,6 +9,8 @@ import { ItineraryItem, Expense, User, ChatMessage, MapMarker } from '../types';
 
 const useCloud = isFirebaseConfigured && db;
 
+const useCloud = isFirebaseConfigured && db;
+console.log("目前模式:", useCloud ? "🔥 連線 Firebase" : "🏠 使用本機 LocalStorage"); // <--- 加入這一行
 // --- Observer System ---
 type Listener<T> = (data: T[]) => void;
 const observers: Record<string, Listener<any>[]> = {
