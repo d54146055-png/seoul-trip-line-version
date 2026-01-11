@@ -462,23 +462,23 @@ const MapView: React.FC<Props> = ({ itineraryItems = [] }) => {
 
                 {/* Results List */}
                 <div className="space-y-3 max-h-56 overflow-y-auto no-scrollbar">
-                    {routeResults.map((res, idx) => (
-                        <div key={idx} className="bg-white border-2 border-ink p-3 rounded-[15px] relative">
-                            <div className="absolute -top-2 -right-2 bg-marker text-white text-[10px] font-bold px-2 py-0.5 rounded-full border border-ink">
-                                {res.label}
-                            </div>
-                            <div className="font-bold text-ink text-lg mb-1 font-hand">{res.duration}</div>
-                            
-                            <div className="flex flex-wrap items-center gap-1 text-xs font-bold text-ink/80">
-                                {res.steps.map((step, sIdx) => (
-                                    <React.Fragment key={sIdx}>
-                                        <span className="bg-gray-100 px-1.5 py-0.5 rounded border border-ink/30">{step}</span>
-                                        {sIdx < res.steps.length - 1 && <ArrowRight size={10} />}
-                                    </React.Fragment>
-                                ))}
-                            </div>
-                        </div>
-                    ))}
+                   {/* ✅ 貼上這一段新的 */}
+      {routeResults.map((res, idx) => (
+          <a 
+               key={idx} 
+               href={res.url}
+               target="_blank"
+               rel="noopener noreferrer"
+               className="block bg-white border-2 border-ink p-3 rounded-[15px] relative hover:bg-yellow-50 transition-colors mb-2 text-center group"
+          >
+               <div className="font-bold text-ink text-lg font-hand group-hover:text-blue-600 flex items-center justify-center gap-2">
+                   🗺️ {res.summary}
+               </div>
+               <div className="text-[10px] text-gray-500 font-bold mt-1">
+                   Tap to view directions ↗
+               </div>
+          </a>
+      ))}
                     {routeResults.length === 0 && !isCalculating && (
                         <div className="text-center text-xs text-gray-400 font-bold py-2">Enter locations to see 3 options</div>
                     )}
