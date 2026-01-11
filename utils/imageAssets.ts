@@ -6,7 +6,7 @@
 
 // 🔴 修改這裡：把你原本的 'assets/' 改成 GitHub 的 Raw 網址前綴
 // 格式通常是: https://raw.githubusercontent.com/[你的帳號]/[你的Repo名稱]/[分支名稱]/[資料夾路徑]/
-const GITHUB_BASE_URL = 'https://raw.githubusercontent.com/EricLiu/SeoulTrip/main/public/'; 
+const GITHUB_BASE_URL = 'https://raw.githubusercontent.com/d54146055-png/seoul-trip-line-version/main/public/'; 
 
 const MY_TRAVEL_PHOTOS = [
   'seoul_1.jpg',
