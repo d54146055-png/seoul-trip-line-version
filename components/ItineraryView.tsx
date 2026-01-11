@@ -112,8 +112,8 @@ const ItineraryView: React.FC<Props> = ({ items }) => {
             notes: newItem.notes || '',
             day: selectedDay,
             weather: { temp: 20, condition: 'sunny', icon: '☀️' },
-            lat: coords.lat,
-            lng: coords.lng,
+            lat: coords.lat || null,
+            lng: coords.lng || null,
             imageUrl: imageToUse || '' 
           });
       }
